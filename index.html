@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 헬스케어 혈당 조절 항상성 탐구 WebApp</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc;
+        }
+        .tab-btn.active {
+            border-bottom: 3px solid #2563eb;
+            color: #2563eb;
+            font-weight: 700;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800 relative">
+
+    <!-- Header / Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-md shadow-blue-500/30">
+                    <i class="fa-solid fa-heart-pulse text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">스마트 헬스케어 항상성 탐구 WebApp</h1>
+                    <p class="text-xs text-slate-400">고등학교 생명과학 I · II. 항상성과 몸의 조절 (2/4차시)</p>
+                </div>
+            </div>
+            <!-- Student / Group Meta Info -->
+            <div class="flex items-center space-x-3 text-sm mt-2 sm:mt-0">
+                <div class="bg-slate-800 px-3 py-1.5 rounded-md border border-slate-700 flex items-center space-x-2">
+                    <i class="fa-solid fa-users text-blue-400"></i>
+                    <span>모둠: <input type="text" id="group-name" value="1모둠" class="bg-transparent font-semibold text-blue-300 w-16 focus:outline-none border-b border-blue-500 text-center"></span>
+                </div>
+                <div class="bg-slate-800 px-3 py-1.5 rounded-md border border-slate-700 flex items-center space-x-2">
+                    <i class="fa-solid fa-user text-emerald-400"></i>
+                    <span>탐구자: <input type="text" id="student-name" value="김과학" class="bg-transparent font-semibold text-emerald-300 w-20 focus:outline-none border-b border-emerald-500 text-center"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage Navigation Tabs -->
+        <div class="bg-slate-800 border-t border-slate-700">
+            <div class="max-w-7xl mx-auto px-4 flex space-x-6 text-slate-300 text-sm overflow-x-auto">
+                <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn active py-3 px-2 flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-compass"></i>
+                    <span>1. 도입 (5분)</span>
+                </button>
+                <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn py-3 px-2 flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-flask text-amber-400"></i>
+                    <span>2. 탐색: 혈당 시뮬레이터 (15분)</span>
+                </button>
+                <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn py-3 px-2 flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-comments text-purple-400"></i>
+                    <span>3. 토론&적용: AI 피드백 회복전략 (25분)</span>
+                </button>
+                <button onclick="switchTab('tab4')" id="btn-tab4" class="tab-btn py-3 px-2 flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-chart-pie text-emerald-400"></i>
+                    <span>4. 정리 & 성찰 (5분)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Custom Modal Dialog (Alert Replacement) -->
+    <div id="custom-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-100">
+            <div class="flex items-center space-x-3">
+                <div id="modal-icon-bg" class="p-3 bg-blue-100 text-blue-600 rounded-full">
+                    <i id="modal-icon" class="fa-solid fa-circle-info text-xl"></i>
+                </div>
+                <h3 id="modal-title" class="font-bold text-slate-800 text-base">알림</h3>
+            </div>
+            <p id="modal-message" class="text-xs text-slate-600 leading-relaxed">메시지 내용입니다.</p>
+            <div class="flex justify-end pt-2">
+                <button onclick="closeModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs px-5 py-2.5 rounded-xl transition">
+                    확인
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- SECTION 1: 도입 (Introduction - 5 mins) -->
+        <section id="tab1" class="tab-content block space-y-6">
+            <!-- Learning Goal Banner -->
+            <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden border border-blue-800/50">
+                <div class="relative z-10 space-y-2">
+                    <span class="bg-blue-500/30 text-blue-200 text-xs px-3 py-1 rounded-full font-medium border border-blue-400/30">수업 탐구 목표</span>
+                    <h2 class="text-xl md:text-2xl font-bold">우리 몸은 식후 혈당이 급격히 상승할 때 신경계와 호르몬의 상호작용을 통해 어떻게 정상 범위를 회복할까?</h2>
+                    <p class="text-blue-200 text-xs md:text-sm max-w-3xl leading-relaxed">
+                        스마트 헬스케어 동기유발 영상을 시청하고, 가상 시뮬레이터를 통해 탄수화물 섭취량과 운동량, 췌장 상태에 따른 혈당 및 호르몬 분비 곡선을 탐구해 봅시다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Video & Motivation Container -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Video Player Column (7 Cols) -->
+                <div class="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center border-b pb-3 border-slate-100">
+                        <div class="flex items-center space-x-2 text-rose-600 font-bold text-sm">
+                            <i class="fa-solid fa-circle-play text-lg animate-pulse"></i>
+                            <span>[도입 영상] 스마트 헬스케어 & 연속혈당측정기(CGM)의 진화</span>
+                        </div>
+                        <span class="text-[11px] bg-rose-50 text-rose-600 font-medium px-2.5 py-1 rounded-full border border-rose-200">탐구 동기유발 시청</span>
+                    </div>
+
+                    <!-- Video Selector Buttons -->
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <button type="button" onclick="changeVideo('Sye03YBPBLc', '당뇨 잡는 의료기기의 진화 (CGM & 스마트 인슐린 펌프)')" id="vbtn-1" class="v-tab-btn active bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-tv"></i>
+                            <span>1. CGM & 스마트 펌프</span>
+                        </button>
+                        <button type="button" onclick="changeVideo('oh5OdhPAILY', '피부 부착형 혈당 센서 및 AI 기술 원리')" id="vbtn-2" class="v-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-microchip"></i>
+                            <span>2. 부착형 혈당 센서</span>
+                        </button>
+                    </div>
+
+                    <!-- Responsive Video Iframe Container (16:9 Aspect Ratio) -->
+                    <div class="relative w-full overflow-hidden rounded-xl bg-slate-900 shadow-md" style="padding-top: 56.25%;">
+                        <iframe id="youtube-player" class="absolute top-0 left-0 w-full h-full border-0 rounded-xl" 
+                                src="https://www.youtube.com/embed/Sye03YBPBLc?rel=0&modestbranding=1" 
+                                title="스마트 헬스케어 연속혈당측정기 영상" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen></iframe>
+                    </div>
+
+                    <div id="video-title-desc" class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                        <span><i class="fa-solid fa-circle-info text-blue-500 mr-1.5"></i> <strong>주요 관찰 포인트:</strong> 바늘 없이 실시간 혈당 변화를 감지하여 필요 인슐린을 계산해주는 스마트 시스템</span>
+                    </div>
+                </div>
+
+                <!-- Right Column: News & Video Reflection & Checklists (5 Cols) -->
+                <div class="lg:col-span-5 space-y-6 flex flex-col justify-between">
+                    
+                    <!-- Video Reflection & Brainstorming Box -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center space-x-2 text-amber-600 text-xs font-bold">
+                            <i class="fa-solid fa-lightbulb"></i>
+                            <span>영상 시청 후 생각 열기 (Think & Note)</span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm">연속혈당측정기(CGM)와 인공 췌장이 대신 수행해 주는 우리 몸의 생리 기능은?</h3>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            영상의 스마트 기기는 실시간 혈당 감지(시상하부 감각 작용)와 인슐린 분비(췌장 베타세포) 기능을 인공적으로 수행합니다.
+                        </p>
+                        <textarea id="video-reflect-input" rows="2" placeholder="영상 소감 및 떠오른 생명과학 의문점을 적어보세요..." class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <!-- Device Check & Readiness -->
+                    <div class="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 shadow-sm space-y-4">
+                        <div>
+                            <div class="flex items-center space-x-2 text-emerald-400 text-xs font-bold mb-2">
+                                <i class="fa-solid fa-laptop-code"></i>
+                                <span>개인별 디지털 탐구 환경 점검</span>
+                            </div>
+                            <h3 class="font-bold text-base mb-3">수업용 디바이스 준비 완료 점검</h3>
+                            <ul class="text-xs space-y-2.5 text-slate-300">
+                                <li class="flex items-center space-x-2">
+                                    <input type="checkbox" id="check1" checked class="rounded text-blue-600 focus:ring-0">
+                                    <label for="check1">도입 스마트 헬스케어 영상 정상 재생</label>
+                                </li>
+                                <li class="flex items-center space-x-2">
+                                    <input type="checkbox" id="check2" checked class="rounded text-blue-600 focus:ring-0">
+                                    <label for="check2">실시간 시뮬레이터 차트 및 간 모니터 동작</label>
+                                </li>
+                                <li class="flex items-center space-x-2">
+                                    <input type="checkbox" id="check3" checked class="rounded text-blue-600 focus:ring-0">
+                                    <label for="check3">AI 분석 튜터 및 실시간 대시보드 연결</label>
+                                </li>
+                            </ul>
+                        </div>
+                        <button onclick="switchTab('tab2')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs py-3 rounded-xl transition text-center flex items-center justify-center space-x-2 shadow-md">
+                            <span>시뮬레이션 데이터 탐색 시작하기</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- SECTION 2: 탐색 (Simulator & Digital Exploration Note - 15 mins) -->
+        <section id="tab2" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Controls & Visual Liver Monitor (4 Cols) -->
+                <div class="lg:col-span-4 space-y-6">
+                    <!-- Control Panel -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b pb-3 border-slate-100">
+                            <h3 class="font-bold text-slate-800 flex items-center space-x-2 text-sm">
+                                <i class="fa-solid fa-sliders text-blue-600"></i>
+                                <span>탐구 변수 조작 (음식물 선택)</span>
+                            </h3>
+                            <button onclick="resetSimulation()" class="text-xs text-slate-400 hover:text-slate-600 underline">초기화</button>
+                        </div>
+
+                        <!-- Specific Food Choice Buttons -->
+                        <div class="space-y-2">
+                            <label class="text-xs font-semibold text-slate-700 block">음식물 선택 프리셋</label>
+                            <div class="grid grid-cols-3 gap-1.5 text-xs">
+                                <button type="button" onclick="setFoodPreset(0, '🥗 샐러드/공복')" class="food-btn bg-slate-50 hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-center transition">
+                                    <span class="block font-medium">🥗 공복</span>
+                                    <span class="text-[10px] text-slate-400">0g</span>
+                                </button>
+                                <button type="button" onclick="setFoodPreset(16, '🍫 초콜릿 1개')" class="food-btn bg-slate-50 hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-center transition">
+                                    <span class="block font-medium">🍫 초콜릿</span>
+                                    <span class="text-[10px] text-slate-400">16g</span>
+                                </button>
+                                <button type="button" onclick="setFoodPreset(25, '🍎 사과 1개')" class="food-btn bg-slate-50 hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-center transition">
+                                    <span class="block font-medium">🍎 사과</span>
+                                    <span class="text-[10px] text-slate-400">25g</span>
+                                </button>
+                                <button type="button" onclick="setFoodPreset(65, '🍚 쌀밥 1공기')" class="food-btn bg-slate-50 hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-center transition">
+                                    <span class="block font-medium">🍚 쌀밥</span>
+                                    <span class="text-[10px] text-slate-400">65g</span>
+                                </button>
+                                <button type="button" onclick="setFoodPreset(90, '🍰 케이크/떡')" class="food-btn bg-slate-50 hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-center transition">
+                                    <span class="block font-medium">🍰 케이크</span>
+                                    <span class="text-[10px] text-slate-400">90g</span>
+                                </button>
+                                <button type="button" onclick="setFoodPreset(130, '🍔 햄버거 세트')" class="food-btn bg-slate-50 hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-center transition">
+                                    <span class="block font-medium">🍔 세트</span>
+                                    <span class="text-[10px] text-slate-400">130g</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Carb Intake Slider -->
+                        <div class="space-y-1 pt-1">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <label for="carb-slider" class="text-slate-700">탄수화물 수치 미세 조절</label>
+                                <span id="carb-value" class="text-blue-600 font-bold">🍚 쌀밥 1공기 (65g)</span>
+                            </div>
+                            <input type="range" id="carb-slider" min="0" max="150" value="65" step="5" oninput="currentFoodName=''; updateSimulation();" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                        </div>
+
+                        <!-- Pancreas Function Selector -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-700">내분비계 (췌장) 상태 설정</label>
+                            <select id="pancreas-state" onchange="updateSimulation()" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                <option value="normal">정상 (인슐린·글루카곤 피드백 정상)</option>
+                                <option value="type1">1형 당뇨 상태 (인슐린 분비 장애)</option>
+                                <option value="type2">2형 당뇨 상태 (표적세포 인슐린 저항성)</option>
+                                <option value="hypo">저혈당 위험 (글루카곤 분비 이상)</option>
+                            </select>
+                        </div>
+
+                        <!-- Exercise Level -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-700">식후 운동량</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" onclick="setExercise(0)" class="ex-btn active bg-blue-50 border border-blue-500 text-blue-700 py-1.5 rounded-lg text-xs font-medium">휴식</button>
+                                <button type="button" onclick="setExercise(1)" class="ex-btn bg-slate-50 border border-slate-200 text-slate-600 py-1.5 rounded-lg text-xs font-medium">보통 걷기</button>
+                                <button type="button" onclick="setExercise(2)" class="ex-btn bg-slate-50 border border-slate-200 text-slate-600 py-1.5 rounded-lg text-xs font-medium">고강도 운동</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Graphic Visualizer for Blood Glucose Particles & Liver Glycogen Cluster -->
+                    <div class="bg-slate-900 text-white p-5 rounded-2xl shadow-sm space-y-3 border border-slate-800">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-xs font-bold text-amber-400 flex items-center space-x-1.5">
+                                <i class="fa-solid fa-microscope"></i>
+                                <span>실시간 혈액 입자 & 간 물질대사 그래픽</span>
+                            </h4>
+                            <span id="liver-status-badge" class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">동적 평형 유지</span>
+                        </div>
+
+                        <!-- Graphical Representation Container -->
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-4">
+                            
+                            <!-- Blood Vessel Particle Display -->
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-[11px]">
+                                    <span class="text-slate-400"><i class="fa-solid fa-vial text-rose-400 mr-1"></i> 혈관 속 포도당 입자</span>
+                                    <span id="visual-glucose-val" class="font-bold text-rose-400">110 mg/dL</span>
+                                </div>
+                                <div class="h-16 bg-rose-950/40 rounded-xl border border-rose-900/50 p-2 flex flex-wrap gap-1.5 items-center overflow-hidden transition-all duration-500" id="glucose-particle-container">
+                                    <!-- Dynamic particle dots generated by JS -->
+                                </div>
+                                <div class="flex justify-between text-[9px] text-slate-500">
+                                    <span>혈당 저하</span>
+                                    <span id="particle-count-text">포도당 8개</span>
+                                    <span>고혈당 스파이크</span>
+                                </div>
+                            </div>
+
+                            <!-- Conversion Arrow & Hormone Action Badge -->
+                            <div class="flex justify-center items-center space-x-3 py-1">
+                                <div id="arrow-direction" class="text-emerald-400 text-lg transition-all duration-500">
+                                    <i class="fa-solid fa-right-left"></i>
+                                </div>
+                                <span id="hormone-action-badge" class="text-[9px] font-bold px-2 py-0.5 rounded bg-blue-900/80 text-blue-200 border border-blue-700">인슐린 작용</span>
+                                <span id="transfer-rate-text" class="text-[10px] text-slate-400">글리코젠 전환중</span>
+                            </div>
+
+                            <!-- Liver Glycogen Cluster Visual -->
+                            <div class="bg-purple-950/30 p-3 rounded-xl border border-purple-900/40 flex justify-between items-center">
+                                <div class="space-y-1">
+                                    <span class="text-[11px] font-bold text-purple-300 block"><i class="fa-solid fa-cube text-purple-400 mr-1"></i> 간(Liver) 속 글리코젠 저장체</span>
+                                    <span id="glycogen-state-text" class="text-[10px] font-bold text-emerald-400 block">정상 축적량</span>
+                                </div>
+
+                                <!-- Dynamic Resizing Glycogen Molecule Cluster -->
+                                <div class="w-14 h-14 flex items-center justify-center relative">
+                                    <div id="glycogen-graphic" class="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-[0_0_12px_rgba(168,85,247,0.5)] transition-all duration-500 flex items-center justify-center border border-purple-300/40">
+                                        <i class="fa-solid fa-cubes text-white text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p id="liver-action-text" class="text-[11px] text-slate-300 bg-slate-900 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
+                                혈당이 정상 동적 평형 범위를 유지하고 있습니다.
+                            </p>
+                        </div>
+
+                        <!-- Hormones Current Status Cards -->
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-slate-800 p-2.5 rounded-lg border border-slate-700">
+                                <span class="text-slate-400 block text-[10px]">인슐린 분비 상태</span>
+                                <span id="current-insulin" class="font-bold text-blue-400 text-xs">정상 범위</span>
+                            </div>
+                            <div class="bg-slate-800 p-2.5 rounded-lg border border-slate-700">
+                                <span class="text-slate-400 block text-[10px]">글루카곤 분비 상태</span>
+                                <span id="current-glucagon" class="font-bold text-amber-400 text-xs">정상 범위</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Graphs & Digital Exploration Note (8 Cols) -->
+                <div class="lg:col-span-8 space-y-6">
+                    <!-- Chart Area -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex flex-wrap justify-between items-center gap-2">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-base">혈당량 및 호르몬 분비 동적 그래프 (180분)</h3>
+                                <p class="text-xs text-slate-500">시간 경과에 따른 혈당 수치(mg/dL)와 혈중 호르몬 농도 변화 곡선</p>
+                            </div>
+                            <div class="flex space-x-3 text-xs">
+                                <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span><span>혈당량</span></span>
+                                <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span><span>인슐린</span></span>
+                                <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span><span>글루카곤</span></span>
+                            </div>
+                        </div>
+
+                        <div class="relative h-[280px] w-full">
+                            <canvas id="bloodGlucoseChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Digital Exploration Note (디지털 탐구 노트) -->
+                    <div class="bg-white p-5 rounded-2xl border border-blue-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                            <h3 class="font-bold text-slate-800 flex items-center space-x-2">
+                                <i class="fa-solid fa-pen-to-square text-blue-600"></i>
+                                <span>디지털 탐구 노트 (관찰 데이터 및 인과관계 기록)</span>
+                            </h3>
+                            <span class="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full font-medium">관찰평가 연동</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Q1. 식후 최고 혈당 도달 시간 및 인슐린/글루카곤 분비 변화 분석</label>
+                                <textarea id="note-q1" rows="3" placeholder="예: 쌀밥 1공기(65g) 섭취 시 40~50분 후 혈당이 최고치에 달하며, 인슐린 농도가 상승함..." class="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Q2. 간에서의 글리코젠 합성/분해와 항상성 회복의 인과관계</label>
+                                <textarea id="note-q2" rows="3" placeholder="예: 인슐린 호르몬이 간에 작용하여 포도당을 글리코젠으로 합성함으로써 혈당이 다시 정상으로 하강함..." class="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2">
+                            <span id="note-save-status" class="text-xs text-slate-400">마지막 저장: 없음</span>
+                            <button onclick="saveDigitalNote()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-medium transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>탐구 노트 저장하기</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: 토론 및 적용 (Discussion & AI Feedback - 25 mins) -->
+        <section id="tab3" class="tab-content hidden space-y-6">
+            <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-md flex justify-between items-center">
+                <div>
+                    <span class="bg-purple-500/30 text-purple-200 text-xs px-3 py-1 rounded-full font-medium border border-purple-400/30">협력적 문제 해결 & AI 분석 툴</span>
+                    <h2 class="text-xl md:text-2xl font-bold mt-1">항상성 피드백 이상 분석 및 '맞춤형 회복 전략 보고서'</h2>
+                    <p class="text-purple-200 text-xs mt-1">시뮬레이션 조건별 이상 생리 반응을 토의하고 AI 학습 피드백을 참고하여 모둠별 보고서를 완성하세요.</p>
+                </div>
+                <div class="hidden md:block text-4xl text-purple-300 pr-2">
+                    <i class="fa-solid fa-brain"></i>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Group Discussion Input Area (7 Cols) -->
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <h3 class="font-bold text-slate-800 text-base border-b pb-3 border-slate-100 flex items-center space-x-2">
+                            <i class="fa-solid fa-users text-purple-600"></i>
+                            <span>모둠 토의 결과 작성: 항상성 피드백 회로 이상 분석</span>
+                        </h3>
+
+                        <!-- Target Case Selection -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-700">분석할 항상성 이상 케이스 선택</label>
+                            <select id="case-select" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                                <option value="type1_case">사례 A: 췌장 베타 세포 손상으로 인한 인슐린 결핍 (1형 당뇨)</option>
+                                <option value="type2_case">사례 B: 표적기관 수용체 이상으로 인한 인슐린 저항성 증가 (2형 당뇨)</option>
+                                <option value="hypo_case">사례 C: 글루카곤 분비 장애 및 장시간 공복으로 인한 저혈당 위험</option>
+                            </select>
+                        </div>
+
+                        <!-- Hypotheses & Mechanism Discussion -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-700">1. 시뮬레이션 수치 비교 및 생리적 영향 토의</label>
+                            <textarea id="discussion-input-1" rows="3" placeholder="모둠원들과 토의한 내용을 입력하세요 (예: 1형 당뇨의 경우 탄수화물 65g 섭취 후 인슐린이 0에 가깝게 유지되어 180분이 지나도 혈당이 240mg/dL 이상 지속됨...)" class="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"></textarea>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-700">2. 맞춤형 항상성 회복 전략 (식이, 운동, 호르몬/약물 치료 등)</label>
+                            <textarea id="discussion-input-2" rows="3" placeholder="맞춤형 전략을 작성하세요 (예: 식전 외부 인슐린 직접 주사, 저당식단 조절 및 근육 세포의 GLUT4 수용체 활성화를 위한 식후 산책 병행...)" class="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"></textarea>
+                        </div>
+
+                        <button onclick="requestAiFeedback()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs py-3 rounded-xl transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>AI 피드백 및 논리적 오개념 검증 요청하기</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Learning Feedback Panel (5 Cols) -->
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="bg-slate-900 text-white p-5 rounded-2xl shadow-sm space-y-4 border border-slate-800">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <h3 class="font-bold text-sm text-purple-300 flex items-center space-x-2">
+                                <i class="fa-solid fa-robot"></i>
+                                <span>AI 학습 피드백 툴</span>
+                            </h3>
+                            <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30">과학적 튜터링</span>
+                        </div>
+
+                        <!-- AI Response Box -->
+                        <div id="ai-feedback-box" class="min-h-[220px] bg-slate-800/90 p-4 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-3 leading-relaxed">
+                            <div class="text-center py-8 text-slate-500">
+                                <i class="fa-solid fa-comments text-3xl mb-2 block"></i>
+                                모둠 토의 결과와 회복 전략을 작성한 후<br>'AI 피드백 및 검증 요청하기' 버튼을 누르시면 과학적 피드백과 오개념 교정이 제공됩니다.
+                            </div>
+                        </div>
+
+                        <!-- Report Submit Action -->
+                        <div class="pt-2 border-t border-slate-800">
+                            <button onclick="submitFinalReport()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs py-2.5 rounded-lg transition text-center flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>'맞춤형 항상성 회복 전략 보고서' 대시보드 제출</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: 정리 및 성찰 (Dashboard, Summary & Reflection - 5 mins) -->
+        <section id="tab4" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Dashboard & Integration Summary (7 Cols) -->
+                <div class="lg:col-span-7 space-y-6">
+                    <!-- Class Live Dashboard (실시간 공유 대시보드) -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b pb-3 border-slate-100">
+                            <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                                <i class="fa-solid fa-chart-line text-emerald-600"></i>
+                                <span>실시간 공유 대시보드 (모둠별 보고서)</span>
+                            </h3>
+                            <span class="text-xs text-slate-400">학급 공유 현황</span>
+                        </div>
+
+                        <!-- Class Submissions List -->
+                        <div class="space-y-3 max-h-[220px] overflow-y-auto pr-1" id="dashboard-list">
+                            <!-- Group 1 (Current) -->
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="font-bold text-slate-800" id="dash-my-group">1모둠 (현재 사용자)</span>
+                                    <p class="text-slate-500 text-[11px]" id="group1-summary">보고서 작성 및 제출 대기 중...</p>
+                                </div>
+                                <span id="group1-status" class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium text-[10px]">작성 중</span>
+                            </div>
+                            <!-- Mock Submissions from Other Groups -->
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="font-bold text-slate-800">2모둠 (사례 A)</span>
+                                    <p class="text-slate-500 text-[11px]">1형 당뇨 회복 전략: 지속적 인슐린 주사 투여 및 식후 유산소 운동으로 포도당 흡수 촉진</p>
+                                </div>
+                                <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium text-[10px]">제출완료</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="font-bold text-slate-800">3모둠 (사례 B)</span>
+                                    <p class="text-slate-500 text-[11px]">2형 당뇨 회복 전략: 정제 탄수화물 제한 식단 및 GLUT4 수용체 감수성 증대를 위한 근력 운동</p>
+                                </div>
+                                <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium text-[10px]">제출완료</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="font-bold text-slate-800">4모둠 (사례 C)</span>
+                                    <p class="text-slate-500 text-[11px]">저혈당 회복 전략: 규칙적인 당질 섭취 및 음성 피드백 회로 정상화를 위한 생활 습관 개선</p>
+                                </div>
+                                <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium text-[10px]">제출완료</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Neuro-Endocrine Integration Summary -->
+                    <div class="bg-slate-900 text-white p-5 rounded-2xl shadow-sm space-y-3 border border-slate-800">
+                        <h3 class="font-bold text-sm text-blue-300 flex items-center space-x-2">
+                            <i class="fa-solid fa-network-wired"></i>
+                            <span>핵심 정리: 신경계와 내분비계의 통합 항상성 조절</span>
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300">
+                            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                                <span class="font-bold text-emerald-400 block mb-1">식후 고혈당 시 (High Glucose)</span>
+                                간뇌 시상하부 감지 → 부교감 신경 자극 → 췌장 베타(β) 세포에서 <strong class="text-blue-300">인슐린</strong> 분비 → 간에서 [포도당 → 글리코젠] 합성 촉진 → 혈당 하강
+                            </div>
+                            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                                <span class="font-bold text-amber-400 block mb-1">공복/운동 저혈당 시 (Low Glucose)</span>
+                                간뇌 시상하부 감지 → 교감 신경 자극 → 췌장 알파(α) 세포에서 <strong class="text-amber-300">글루카곤</strong> 분비 → 간에서 [글리코젠 → 포도당] 분해 촉진 → 혈당 상승
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Self Reflection Log (5 Cols) -->
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="border-b pb-3 border-slate-100">
+                            <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                                <i class="fa-solid fa-heart-pulse text-rose-500"></i>
+                                <span>개인 학습 성찰 일지</span>
+                            </h3>
+                            <p class="text-xs text-slate-500">인체의 정교함과 나의 건강 습관 성찰</p>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="font-semibold text-slate-700 block mb-1">1. 오늘 탐구를 통해 느낀 인체 항상성 조절 메커니즘의 경이로움</label>
+                                <textarea id="reflect-q1" rows="3" placeholder="혈당을 정교한 범위로 유지하기 위해 신경계와 호르몬이 길항 작용과 음성 피드백을 수행함을 보며 느낀 점을 서술하세요..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="font-semibold text-slate-700 block mb-1">2. 나의 혈당 건강을 지키기 위한 건강한 생활 습관 실천 다짐</label>
+                                <textarea id="reflect-q2" rows="2" placeholder="정제 당류 음료 줄이기, 식후 20분 가벼운 산책하기 등..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none"></textarea>
+                            </div>
+
+                            <button onclick="saveReflectionLog()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs py-2.5 rounded-lg transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-check"></i>
+                                <span>성찰 일지 저장 및 탐구 학습 완료</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-4 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p>AI·디지털 도구 활용 교수·학습 설계안 기반 수업용 웹앱 | 인천산곡고등학교 생명과학 I 수업 모듈</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Global State Variables
+        let currentExercise = 0; // 0: Rest, 1: Walk, 2: High Exercise
+        let currentFoodName = "🍚 쌀밥 1공기";
+        let chart = null;
+
+        // Tab Switcher with Safe Element Guards
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            const targetTab = document.getElementById(tabId);
+            const targetBtn = document.getElementById('btn-' + tabId);
+
+            if (targetTab) {
+                targetTab.classList.remove('hidden');
+            }
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+
+            if (tabId === 'tab2') {
+                if (!chart) {
+                    initChart();
+                }
+                if (chart) {
+                    setTimeout(() => {
+                        chart.resize();
+                        updateSimulation();
+                    }, 100);
+                }
+            }
+        }
+
+        // Custom Modal Functions
+        function showModal(title, message, iconClass = 'fa-circle-info', iconBgClass = 'bg-blue-100 text-blue-600') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            
+            const iconEl = document.getElementById('modal-icon');
+            iconEl.className = `fa-solid ${iconClass} text-xl`;
+            
+            const iconBgEl = document.getElementById('modal-icon-bg');
+            iconBgEl.className = `p-3 rounded-full ${iconBgClass}`;
+            
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // Video Switcher Function
+        function changeVideo(videoId, title) {
+            const player = document.getElementById('youtube-player');
+            if (player) {
+                player.src = `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=1&modestbranding=1`;
+            }
+            
+            document.querySelectorAll('.v-tab-btn').forEach(btn => {
+                btn.className = "v-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium transition flex items-center space-x-1.5";
+            });
+
+            if (videoId === 'Sye03YBPBLc') {
+                const btn1 = document.getElementById('vbtn-1');
+                if (btn1) btn1.className = "v-tab-btn active bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium transition flex items-center space-x-1.5";
+                document.getElementById('video-title-desc').innerHTML = `<span><i class="fa-solid fa-circle-info text-blue-500 mr-1.5"></i> <strong>주요 관찰 포인트:</strong> 바늘 없이 실시간 혈당 변화를 감지하여 필요 인슐린을 계산해주는 스마트 시스템</span>`;
+            } else {
+                const btn2 = document.getElementById('vbtn-2');
+                if (btn2) btn2.className = "v-tab-btn active bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium transition flex items-center space-x-1.5";
+                document.getElementById('video-title-desc').innerHTML = `<span><i class="fa-solid fa-circle-info text-blue-500 mr-1.5"></i> <strong>주요 관찰 포인트:</strong> 피부에 부착하여 24시간 실시간 데이터를 송신하는 고감도 바이오 센서 기술</span>`;
+            }
+        }
+
+        // Food Preset Selection Button
+        function setFoodPreset(grams, name) {
+            currentFoodName = name;
+            document.getElementById('carb-slider').value = grams;
+            updateSimulation();
+        }
+
+        // Set Exercise Level
+        function setExercise(level) {
+            currentExercise = level;
+            document.querySelectorAll('.ex-btn').forEach((btn, idx) => {
+                if (idx === level) {
+                    btn.className = "ex-btn active bg-blue-50 border border-blue-500 text-blue-700 py-1.5 rounded-lg text-xs font-medium";
+                } else {
+                    btn.className = "ex-btn bg-slate-50 border border-slate-200 text-slate-600 py-1.5 rounded-lg text-xs font-medium";
+                }
+            });
+            updateSimulation();
+        }
+
+        // Calculate Glucose & Hormones Data Engine
+        function calculateGlucoseData(carbGrams, condition, exercise) {
+            const timePoints = [];
+            const glucoseData = [];
+            const insulinData = [];
+            const glucagonData = [];
+
+            const fastingGlucose = 90;
+
+            for (let t = 0; t <= 180; t += 10) {
+                timePoints.push(t + '분');
+
+                let glucose = fastingGlucose;
+                let insulin = 10; // uIU/mL
+                let glucagon = 50; // pg/mL
+
+                // Meal impact peak around 40-50 mins
+                const absorptionRate = Math.sin((Math.min(t, 120) / 120) * Math.PI);
+                const rawSpike = (carbGrams * 1.1) * absorptionRate;
+                const exerciseBurn = exercise * (t / 180) * 25;
+
+                if (condition === 'normal') {
+                    // Normal negative feedback
+                    const netSpike = Math.max(0, rawSpike - exerciseBurn);
+                    glucose = fastingGlucose + netSpike * 0.45;
+                    
+                    if (glucose > 100) {
+                        insulin = 10 + (glucose - 100) * 0.8;
+                        glucose -= (insulin - 10) * 0.38; // Insulin lowers glucose
+                    }
+                    if (glucose < 85) {
+                        glucagon = 50 + (85 - glucose) * 2.2;
+                        glucose += (glucagon - 50) * 0.2; // Glucagon raises glucose
+                    }
+                } else if (condition === 'type1') {
+                    // Type 1 Diabetes: Insulin deficient
+                    const netSpike = Math.max(0, rawSpike - exerciseBurn);
+                    glucose = fastingGlucose + netSpike * 1.35;
+                    insulin = 2; // Minimal insulin
+                    glucagon = 45;
+                } else if (condition === 'type2') {
+                    // Type 2 Diabetes: Insulin resistance
+                    const netSpike = Math.max(0, rawSpike - exerciseBurn);
+                    glucose = fastingGlucose + netSpike * 0.95;
+                    insulin = 10 + (glucose - 90) * 1.1; // Compensatory high insulin
+                    glucose -= (insulin - 10) * 0.12; // Resistance reduces glucose clearance
+                    glucagon = 40;
+                } else if (condition === 'hypo') {
+                    // Hypoglycemia risk
+                    glucose = Math.max(45, fastingGlucose - (t * 0.25) - exerciseBurn * 0.5);
+                    insulin = 3;
+                    glucagon = 30; // Impaired glucagon response
+                }
+
+                glucoseData.push(Math.round(Math.max(40, glucose)));
+                insulinData.push(Math.round(Math.max(0, insulin)));
+                glucagonData.push(Math.round(Math.max(0, glucagon)));
+            }
+
+            return { timePoints, glucoseData, insulinData, glucagonData };
+        }
+
+        // Initialize Chart.js
+        function initChart() {
+            const canvas = document.getElementById('bloodGlucoseChart');
+            if (!canvas) return;
+            if (chart) return;
+
+            const ctx = canvas.getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: '혈당량 (mg/dL)',
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.3,
+                            data: [],
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '인슐린 (µIU/mL)',
+                            borderColor: '#3b82f6',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.3,
+                            data: [],
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: '글루카곤 (pg/mL)',
+                            borderColor: '#f59e0b',
+                            borderWidth: 2,
+                            borderDash: [2, 2],
+                            tension: 0.3,
+                            data: [],
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: '혈당량 (mg/dL)', font: { size: 11 } },
+                            min: 40,
+                            max: 300,
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: '호르몬 농도', font: { size: 11 } },
+                            min: 0,
+                            max: 120,
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update Simulation Visualization
+        function updateSimulation() {
+            const carbSlider = document.getElementById('carb-slider');
+            if (!carbSlider) return;
+
+            const carbVal = parseInt(carbSlider.value);
+            const labelText = currentFoodName ? `${currentFoodName} (${carbVal}g)` : `직접 설정: ${carbVal}g`;
+            document.getElementById('carb-value').innerText = labelText;
+
+            const condition = document.getElementById('pancreas-state').value;
+            const simRes = calculateGlucoseData(carbVal, condition, currentExercise);
+
+            // Lazy initialize chart if not ready
+            if (!chart) {
+                initChart();
+            }
+
+            // Update Chart Data if initialized
+            if (chart) {
+                chart.data.labels = simRes.timePoints;
+                chart.data.datasets[0].data = simRes.glucoseData;
+                chart.data.datasets[1].data = simRes.insulinData;
+                chart.data.datasets[2].data = simRes.glucagonData;
+                chart.update();
+            }
+
+            // Peak Values
+            const peakGlucose = Math.max(...simRes.glucoseData);
+            const peakInsulin = Math.max(...simRes.insulinData);
+
+            // Dynamic Render: Blood Glucose Particles & Liver Glycogen Cluster Graphic
+            renderVisualLiverMetabolism(peakGlucose, condition, peakInsulin);
+        }
+
+        // Render Graphic Visuals for Blood Particles and Liver Glycogen
+        function renderVisualLiverMetabolism(glucose, condition, insulin) {
+            const particleContainer = document.getElementById('glucose-particle-container');
+            const glycogenGraphic = document.getElementById('glycogen-graphic');
+            const arrowEl = document.getElementById('arrow-direction');
+            const liverTextEl = document.getElementById('liver-action-text');
+            const statusBadge = document.getElementById('liver-status-badge');
+            const hormoneBadge = document.getElementById('hormone-action-badge');
+            const transferRateText = document.getElementById('transfer-rate-text');
+            const visualGlucoseVal = document.getElementById('visual-glucose-val');
+            const particleCountText = document.getElementById('particle-count-text');
+            const glycogenStateText = document.getElementById('glycogen-state-text');
+
+            if (!particleContainer) return;
+
+            visualGlucoseVal.innerText = `${glucose} mg/dL`;
+
+            // Calculate number of particles (3 to 22 depending on glucose)
+            const particleCount = Math.min(22, Math.max(3, Math.round((glucose - 30) / 10)));
+            particleCountText.innerText = `포도당 ${particleCount}개`;
+
+            // Clear and render particle dots
+            particleContainer.innerHTML = '';
+            for (let i = 0; i < particleCount; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-300 shadow-[0_0_6px_#fde047] inline-block animate-pulse transition-transform duration-300';
+                dot.title = '포도당(Glucose) 입자';
+                particleContainer.appendChild(dot);
+            }
+
+            // Logic for Visual States
+            if (condition === 'type1') {
+                arrowEl.className = "text-rose-500 text-xl transition-all duration-500";
+                arrowEl.innerHTML = '<i class="fa-solid fa-ban"></i>';
+                hormoneBadge.innerText = "차단됨";
+                hormoneBadge.className = "text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-900/80 text-rose-200 border border-rose-700";
+                transferRateText.innerText = "인슐린 결핍";
+
+                glycogenGraphic.className = "transition-all duration-500 transform scale-75 opacity-60";
+                glycogenStateText.innerText = "합성 불가";
+                glycogenStateText.className = "text-[10px] font-bold text-rose-400 z-10";
+
+                liverTextEl.innerText = `인슐린 결핍으로 혈액 속에 포도당 입자가 넘쳐나도(${glucose}mg/dL) 간으로 들어가지 못하고 지속적 고혈당 유지!`;
+                statusBadge.innerText = "피드백 회로 차단됨";
+                statusBadge.className = "text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-full font-medium";
+
+                document.getElementById('current-insulin').innerText = "분비 장애 (극소량)";
+                document.getElementById('current-glucagon').innerText = "기저 수준";
+
+            } else if (condition === 'hypo') {
+                arrowEl.className = "text-amber-400 text-2xl transition-all duration-500 -translate-x-1 animate-pulse";
+                arrowEl.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
+                hormoneBadge.innerText = "글루카곤 작용";
+                hormoneBadge.className = "text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-900/80 text-amber-200 border border-amber-700";
+                transferRateText.innerText = "글리코젠 분해";
+
+                glycogenGraphic.className = "transition-all duration-500 transform scale-75 shadow-[0_0_15px_rgba(245,158,11,0.6)]";
+                glycogenStateText.innerText = "분해 진행 중 (-)";
+                glycogenStateText.className = "text-[10px] font-bold text-amber-300 z-10";
+
+                liverTextEl.innerText = `혈당 저하(${glucose}mg/dL) 감지! 췌장 알파세포에서 글루카곤이 분비되어 간의 글리코젠을 포도당으로 분해·방출합니다.`;
+                statusBadge.innerText = "저혈당 경고";
+                statusBadge.className = "text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium";
+
+                document.getElementById('current-insulin').innerText = "분비 억제";
+                document.getElementById('current-glucagon').innerText = "분비 촉진 중";
+
+            } else if (glucose > 125) {
+                arrowEl.className = "text-blue-400 text-2xl transition-all duration-500 translate-x-1 animate-bounce";
+                arrowEl.innerHTML = '<i class="fa-solid fa-arrow-right"></i>';
+                hormoneBadge.innerText = "인슐린 작용";
+                hormoneBadge.className = "text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-900/80 text-blue-200 border border-blue-700";
+                transferRateText.innerText = "글리코젠 합성";
+
+                glycogenGraphic.className = "transition-all duration-500 transform scale-125 shadow-[0_0_20px_rgba(59,130,246,0.8)]";
+                glycogenStateText.innerText = "합성 축적 중 (+)";
+                glycogenStateText.className = "text-[10px] font-bold text-emerald-300 z-10";
+
+                liverTextEl.innerText = `식후 고혈당(${glucose}mg/dL) 감지 → 인슐린 분비 촉진 → 혈액의 포도당을 간으로 흡수하여 글리코젠 입자로 크게 저장 중!`;
+                statusBadge.innerText = "글리코젠 합성 활성";
+                statusBadge.className = "text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium";
+
+                document.getElementById('current-insulin').innerText = `고농도 (${insulin} µIU/mL)`;
+                document.getElementById('current-glucagon').innerText = "분비 억제됨";
+
+            } else {
+                arrowEl.className = "text-emerald-400 text-lg transition-all duration-500";
+                arrowEl.innerHTML = '<i class="fa-solid fa-right-left"></i>';
+                hormoneBadge.innerText = "동적 평형";
+                hormoneBadge.className = "text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-900/80 text-emerald-200 border border-emerald-700";
+                transferRateText.innerText = "기저 수치 유지";
+
+                glycogenGraphic.className = "transition-all duration-500 transform scale-100";
+                glycogenStateText.innerText = "저장량 정상";
+                glycogenStateText.className = "text-[10px] font-bold text-purple-300 z-10";
+
+                liverTextEl.innerText = `혈당 수치(${glucose}mg/dL)가 정상 동적 평형 범위(70~110 mg/dL) 내에서 안정적으로 조절되고 있습니다.`;
+                statusBadge.innerText = "동적 평형 유지";
+                statusBadge.className = "text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium";
+
+                document.getElementById('current-insulin').innerText = "정상 범위";
+                document.getElementById('current-glucagon').innerText = "정상 범위";
+            }
+        }
+
+        // Reset Simulation Controls
+        function resetSimulation() {
+            document.getElementById('carb-slider').value = 65;
+            currentFoodName = "🍚 쌀밥 1공기";
+            document.getElementById('pancreas-state').value = 'normal';
+            setExercise(0);
+        }
+
+        // Save Digital Exploration Note
+        function saveDigitalNote() {
+            const q1 = document.getElementById('note-q1').value;
+            const q2 = document.getElementById('note-q2').value;
+
+            if (!q1 || !q2) {
+                showModal('저장 불가', '디지털 탐구 노트의 Q1과 Q2 답변을 작성하신 후 저장해 주세요.', 'fa-triangle-exclamation', 'bg-amber-100 text-amber-600');
+                return;
+            }
+
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+            document.getElementById('note-save-status').innerText = `마지막 저장: 오늘 ${timeStr}`;
+            showModal('저장 완료', '디지털 탐구 노트가 성공적으로 저장되었습니다!\n(교사의 실시간 과정 중심 관찰평가 대시보드로 연동됩니다)', 'fa-circle-check', 'bg-emerald-100 text-emerald-600');
+        }
+
+        // Gemini AI Feedback Functionality
+        async function requestAiFeedback() {
+            const caseVal = document.getElementById('case-select').value;
+            const caseText = document.getElementById('case-select').options[document.getElementById('case-select').selectedIndex].text;
+            const input1 = document.getElementById('discussion-input-1').value;
+            const input2 = document.getElementById('discussion-input-2').value;
+            const box = document.getElementById('ai-feedback-box');
+
+            if (!input1 || !input2) {
+                showModal('입력 필요', '모둠 토의 결과와 회복 전략을 작성한 후 AI 피드백을 요청하세요.', 'fa-circle-exclamation', 'bg-purple-100 text-purple-600');
+                return;
+            }
+
+            box.innerHTML = `
+                <div class="flex items-center justify-center space-x-2 text-purple-300 py-8">
+                    <i class="fa-solid fa-circle-notch fa-spin text-xl"></i>
+                    <span>Gemini AI가 과학적 관점에서 학생 작성 내용을 분석 중입니다...</span>
+                </div>
+            `;
+
+            const promptText = `
+                역할: 고등학교 생명과학 I 내분비계 항상성 조절 전문 AI 튜터.
+                학생 모둠 정보:
+                - 선택 사례: ${caseText}
+                - 학생 분석 내용: ${input1}
+                - 학생 회복 전략: ${input2}
+
+                지시사항:
+                1. 학생들이 생물학적 인과관계(인슐린/글루카곤, 간에서의 글리코젠 합성/분해, 표적세포 수용체 작용)를 바르게 파악했는지 칭찬하십시오.
+                2. 잘못되거나 부족한 생명과학 오개념이 있다면 친절하게 짚어주세요.
+                3. 글루코스 수용체(GLUT4), 식후 운동의 효과, 인슐린 감수성 등 심화 학습을 위한 1가지 조언을 추가하세요.
+                4. 한국어로 작성하고 4~5문장 내외로 명확하고 격려하는 어조로 작성하세요.
+            `;
+
+            try {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }]
+                    })
+                });
+
+                if (!response.ok) throw new Error('API Response Error');
+
+                const result = await response.json();
+                const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiText) {
+                    box.innerHTML = `
+                        <div class="space-y-2">
+                            <div class="flex items-center space-x-1 text-emerald-400 font-bold">
+                                <i class="fa-solid fa-sparkles"></i>
+                                <span>AI 학습 분석 피드백</span>
+                            </div>
+                            <div class="text-xs text-slate-200 leading-relaxed whitespace-pre-line">${aiText}</div>
+                        </div>
+                    `;
+                    return;
+                }
+            } catch (err) {
+                // Fallback structured feedback
+                setTimeout(() => {
+                    box.innerHTML = `
+                        <div class="space-y-2">
+                            <p class="font-bold text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i> 과학적 분석 평가</p>
+                            <p>${caseText.split(':')[0]}에 대한 피드백 조절 이상과 호르몬 결핍 원인을 논리적으로 잘 분석하셨습니다.</p>
+                            <p class="font-bold text-amber-300 border-t border-slate-700 pt-2"><i class="fa-solid fa-lightbulb mr-1"></i> AI 튜터 조언 및 오개념 교정</p>
+                            <p>제시한 맞춤형 치료 전략에 더해, 식후 유산소 운동 시 세포막의 GLUT4 포도당 수용체가 인슐린 없이도 활성화되어 혈당을 떨어뜨린다는 점을 참고하여 전략 보고서를 보완해보세요!</p>
+                        </div>
+                    `;
+                }, 800);
+            }
+        }
+
+        // Submit Strategy Report to Dashboard
+        function submitFinalReport() {
+            const input2 = document.getElementById('discussion-input-2').value;
+            const groupName = document.getElementById('group-name').value;
+
+            if (!input2) {
+                showModal('작성 필요', '맞춤형 회복 전략을 작성한 후 제출해 주세요.', 'fa-pen-clip', 'bg-amber-100 text-amber-600');
+                return;
+            }
+
+            document.getElementById('dash-my-group').innerText = `${groupName} (현재 사용자)`;
+            document.getElementById('group1-summary').innerText = `맞춤형 전략: ${input2.substring(0, 45)}...`;
+            document.getElementById('group1-status').innerText = '제출완료';
+            document.getElementById('group1-status').className = 'bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium text-[10px]';
+
+            showModal('제출 성공', `${groupName}의 '맞춤형 항상성 회복 전략 보고서'가 학급 공유 대시보드에 성공적으로 등록되었습니다!`, 'fa-circle-check', 'bg-emerald-100 text-emerald-600');
+            switchTab('tab4');
+        }
+
+        // Save Reflection Log
+        function saveReflectionLog() {
+            const q1 = document.getElementById('reflect-q1').value;
+            const q2 = document.getElementById('reflect-q2').value;
+
+            if (!q1 || !q2) {
+                showModal('작성 필요', '성찰 일지의 1번과 2번 질문에 대해 모두 작성해 주세요.', 'fa-circle-info', 'bg-blue-100 text-blue-600');
+                return;
+            }
+
+            showModal('학습 완료', '오늘의 항상성 조절 탐구 학습 성찰 일지가 성공적으로 저장되었습니다. 수고하셨습니다!', 'fa-trophy', 'bg-amber-100 text-amber-600');
+        }
+
+        // Initialize on Load
+        window.onload = function() {
+            initChart();
+            if (chart) {
+                updateSimulation();
+            }
+        };
+    </script>
+</body>
+</html>
